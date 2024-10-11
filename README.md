@@ -6,7 +6,7 @@
     ├── overleaf                        # includes images, bibliography and latex files from overleaf
     ├── results                         # Images of the plotted results
     ├── src                             # Source files
-    │   ├── notebooks                      # Code for solving task a-g
+    │   ├── notebooks                      # Code for solving tasks
     │   ├── python                         # Code for plotting heatmaps of terrain data
     │   ├── functions.py                   # File containing most used functions
     │   └── load_data.py                   # File containing function to load dataset
