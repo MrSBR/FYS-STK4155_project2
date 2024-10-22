@@ -17,7 +17,7 @@ def beta_OLS(X: np.ndarray, z: np.ndarray) -> np.ndarray:
 	beta = np.linalg.pinv(X.T @ X) @ X.T @ z
 	return beta
 
-def beta_ridge(X: np.ndarray, z: np.ndarray, lamda: float) -> np.ndarray:
+def beta_Ridge(X: np.ndarray, z: np.ndarray, lamda: float) -> np.ndarray:
 	I = np.eye(X.shape[1])
 	betaRidge =  np.linalg.inv(X.T @ X + I*lamda) @ X.T @ z
 	return betaRidge
