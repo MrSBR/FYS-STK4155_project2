@@ -6,7 +6,7 @@ from jax import grad as jax_grad
 
 class GradientDescent:
     def __init__(self, X, y, beta, learning_rate=0.01, epochs=100, momentum=0,
-                 optimizer='sgd', gradient_method='analytical', lambda_param=0.0):
+                 optimizer='gd', gradient_method='analytical', lambda_param=0.0, cost_function='ols'):
         self.X = X
         self.y = y
         self.beta = beta
@@ -16,6 +16,7 @@ class GradientDescent:
         self.optimizer = optimizer
         self.gradient_method = gradient_method
         self.lambda_param = lambda_param
+        self.cost_function = cost_function
         self.n = len(y)
         self.prev_beta = beta.copy() if momentum == 1 else None
 
@@ -41,12 +42,17 @@ class GradientDescent:
     def _compute_gradient_analytical(self, beta, Xj, yj):
         y_pred = Xj @ beta
         gradient = Xj.T @ (y_pred - yj)
-        return gradient + self.lambda_param * beta
+        if self.cost_function == 'ridge':
+            gradient += self.lambda_param * beta
+        return gradient
 
     def _compute_loss_autograd(self, beta, Xj, yj):
         y_pred = anp.dot(Xj, beta)
-        ridge_penalty = 0.5 * self.lambda_param * anp.sum(beta ** 2)
-        return 0.5 * np.sum((y_pred - yj) ** 2) + ridge_penalty
+        loss = 0.5 * anp.sum((y_pred - yj) ** 2)
+        if self.cost_function == 'ridge':
+            ridge_penalty = 0.5 * self.lambda_param * anp.sum(beta ** 2)
+            loss += ridge_penalty
+        return loss
 
     def _compute_gradient_autograd(self, beta, Xj, yj):
         compute_loss_local = lambda beta: self._compute_loss_autograd(beta, Xj, yj)
@@ -54,16 +60,19 @@ class GradientDescent:
 
     def _compute_loss_jax(self, beta, Xj, yj):
         y_pred = jnp.dot(Xj, beta)
-        ridge_penalty = 0.5 * self.lambda_param * jnp.sum(beta ** 2)
-        return 0.5 * jnp.sum((y_pred - yj) ** 2) + ridge_penalty
+        loss = 0.5 * jnp.sum((y_pred - yj) ** 2)
+        if self.cost_function == 'ridge':
+            ridge_penalty = 0.5 * self.lambda_param * jnp.sum(beta ** 2)
+            loss += ridge_penalty
+        return loss
 
     def _compute_gradient_jax(self, beta, Xj, yj):
         compute_loss_local = lambda beta: self._compute_loss_jax(beta, Xj, yj)
         return jax_grad(compute_loss_local)(beta)
 
     def optimize(self):
-        if self.optimizer == 'sgd':
-            self._sgd()
+        if self.optimizer == 'gd':
+            self._gd()
         elif self.optimizer == 'adagrad':
             self._adagrad()
         elif self.optimizer == 'rmsprop':
@@ -74,7 +83,7 @@ class GradientDescent:
             raise ValueError(f"Unknown optimizer: {self.optimizer}")
         return self.beta
 
-    def _sgd(self):
+    def _gd(self):
         for _ in range(self.epochs):
             for j in range(self.n):
                 gradient = self.compute_gradient(self.beta, self.X[j], self.y[j])
@@ -133,13 +142,13 @@ class GradientDescent:
                     self.beta -= self.learning_rate / (self.np_module.sqrt(v_hat) + epsilon) * m_hat
 
 # Example usage:
-# gd = GradientDescent(X, y, beta, learning_rate=0.01, epochs=100, optimizer='adam', gradient_method='jax', lambda_param=0.1)
+# gd = GradientDescent(X, y, beta, learning_rate=0.01, epochs=100, optimizer='adam', gradient_method='jax', lambda_param=0.1, cost_function='ridge')
 # optimized_beta = gd.optimize()
 
 
 class StochasticGradientDescent:
     def __init__(self, X, y, beta, learning_rate=0.01, epochs=100, momentum=0, 
-                 optimizer='sgd', gradient_method='analytical', lambda_param=0.0):
+                 optimizer='sgd', gradient_method='analytical', lambda_param=0.0, cost_function='ols'):
         self.X = X
         self.y = y
         self.beta = beta
@@ -149,6 +158,7 @@ class StochasticGradientDescent:
         self.optimizer = optimizer
         self.gradient_method = gradient_method
         self.lambda_param = lambda_param
+        self.cost_function = cost_function
         self.n = len(y)
         self.prev_beta = beta.copy() if momentum == 1 else None
 
@@ -174,12 +184,17 @@ class StochasticGradientDescent:
     def _compute_gradient_analytical(self, beta, Xj, yj):
         y_pred = Xj @ beta
         gradient = Xj.T @ (y_pred - yj)
-        return gradient + self.lambda_param * beta
+        if self.cost_function == 'ridge':
+            gradient += self.lambda_param * beta
+        return gradient
 
     def _compute_loss_autograd(self, beta, Xj, yj):
         y_pred = anp.dot(Xj, beta)
-        ridge_penalty = 0.5 * self.lambda_param * anp.sum(beta ** 2)
-        return 0.5 * anp.sum((y_pred - yj) ** 2) + ridge_penalty
+        loss = 0.5 * anp.sum((y_pred - yj) ** 2)
+        if self.cost_function == 'ridge':
+            ridge_penalty = 0.5 * self.lambda_param * anp.sum(beta ** 2)
+            loss += ridge_penalty
+        return loss
 
     def _compute_gradient_autograd(self, beta, Xj, yj):
         compute_loss_local = lambda beta: self._compute_loss_autograd(beta, Xj, yj)
@@ -187,8 +202,11 @@ class StochasticGradientDescent:
 
     def _compute_loss_jax(self, beta, Xj, yj):
         y_pred = jnp.dot(Xj, beta)
-        ridge_penalty = 0.5 * self.lambda_param * jnp.sum(beta ** 2)
-        return 0.5 * jnp.sum((y_pred - yj) ** 2) + ridge_penalty
+        loss = 0.5 * jnp.sum((y_pred - yj) ** 2)
+        if self.cost_function == 'ridge':
+            ridge_penalty = 0.5 * self.lambda_param * jnp.sum(beta ** 2)
+            loss += ridge_penalty
+        return loss
 
     def _compute_gradient_jax(self, beta, Xj, yj):
         compute_loss_local = lambda beta: self._compute_loss_jax(beta, Xj, yj)
@@ -209,7 +227,7 @@ class StochasticGradientDescent:
 
     def _sgd(self):
         for _ in range(self.epochs):
-            for j in range(self.n):
+            for _ in range(self.n):
                 random_index = np.random.randint(self.n)
                 X_random = self.X[random_index].reshape(1, -1)
                 y_random = self.y[random_index]
@@ -224,7 +242,7 @@ class StochasticGradientDescent:
         epsilon = 1e-8
         G = self.np_module.zeros_like(self.beta)
         for _ in range(self.epochs):
-            for j in range(self.n):
+            for _ in range(self.n):
                 random_index = np.random.randint(self.n)
                 X_random = self.X[random_index].reshape(1, -1)
                 y_random = self.y[random_index]
@@ -241,7 +259,7 @@ class StochasticGradientDescent:
         decay_rate = 0.9
         G = self.np_module.zeros_like(self.beta)
         for _ in range(self.epochs):
-            for j in range(self.n):
+            for _ in range(self.n):
                 random_index = np.random.randint(self.n)
                 X_random = self.X[random_index].reshape(1, -1)
                 y_random = self.y[random_index]
@@ -261,7 +279,7 @@ class StochasticGradientDescent:
         v = self.np_module.zeros_like(self.beta)
         t = 0
         for _ in range(self.epochs):
-            for j in range(self.n):
+            for _ in range(self.n):
                 t += 1
                 random_index = np.random.randint(self.n)
                 X_random = self.X[random_index].reshape(1, -1)
@@ -277,7 +295,7 @@ class StochasticGradientDescent:
                 else:
                     self.beta -= self.learning_rate / (self.np_module.sqrt(v_hat) + epsilon) * m_hat
 
-
 # Example usage:
-# sgd = StochasticGradientDescent(X, y, beta, learning_rate=0.01, epochs=100, optimizer='adam', gradient_method='jax')
+# sgd = StochasticGradientDescent(X, y, beta, learning_rate=0.01, epochs=100, optimizer='adam',gradient_method='jax', lambda_param=0.1, cost_function='ridge')
 # optimized_beta = sgd.optimize()
+
