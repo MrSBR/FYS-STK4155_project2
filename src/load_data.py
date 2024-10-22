@@ -14,3 +14,4 @@ def load_wisconsin_data():
     X = data[:, 1:]
     y = data[:, 0]
     return X, y
+
