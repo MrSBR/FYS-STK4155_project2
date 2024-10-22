@@ -6,7 +6,8 @@ from jax import grad as jax_grad
 
 class GradientDescent:
     def __init__(self, X, y, beta, learning_rate=0.01, epochs=100, momentum=0,
-                 optimizer='gd', gradient_method='analytical', lambda_param=0.0, cost_function='ols'):
+                 optimizer='gd', gradient_method='analytical', lambda_param=0.0,
+                 cost_function='ols', decay_rate=0.9):
         self.X = X
         self.y = y
         self.beta = beta.copy()
@@ -18,6 +19,7 @@ class GradientDescent:
         self.lambda_param = lambda_param
         self.cost_function = cost_function
         self.n = len(y)
+        self.decay_rate = decay_rate
 
         # Select the numpy module and gradient computation function
         if self.gradient_method == 'analytical':
@@ -101,19 +103,18 @@ class GradientDescent:
 
     def _rmsprop(self):
         epsilon = 1e-8
-        decay_rate = 0.9
         G = self.np_module.zeros_like(self.beta)
+        velocity = self.np_module.zeros_like(self.beta)
         for _ in range(self.epochs):
-            for j in range(self.n):
-                gradient = self.compute_gradient(self.beta, self.X[j], self.y[j])
-                G = decay_rate * G + (1 - decay_rate) * gradient ** 2
-                if self.momentum == 1:
-                    self.beta -= self.learning_rate / (self.np_module.sqrt(G) + epsilon) * gradient + self.momentum * (self.beta - self.prev_beta)
-                    self.prev_beta = self.beta.copy()
-                else:
-                    self.beta -= self.learning_rate / (self.np_module.sqrt(G) + epsilon) * gradient
+            gradient = self.compute_gradient(self.beta, self.X, self.y)
+            G = self.decay_rate * G + (1 - self.decay_rate) * gradient ** 2
+            velocity = self.momentum * velocity - self.learning_rate / (self.np_module.sqrt(G) + epsilon) * gradient
+            self.beta += velocity
+
 
     def _adam(self):
+        #adam optimizer essentially includes momentum through first moment (m)
+        #so it shouldn't be implemented alongside adam.
         epsilon = 1e-8
         beta1 = 0.9
         beta2 = 0.999
@@ -121,18 +122,13 @@ class GradientDescent:
         v = self.np_module.zeros_like(self.beta)
         t = 0
         for _ in range(self.epochs):
-            for j in range(self.n):
-                t += 1
-                gradient = self.compute_gradient(self.beta, self.X[j], self.y[j])
-                m = beta1 * m + (1 - beta1) * gradient
-                v = beta2 * v + (1 - beta2) * gradient ** 2
-                m_hat = m / (1 - beta1 ** t)
-                v_hat = v / (1 - beta2 ** t)
-                if self.momentum == 1:
-                    self.beta -= self.learning_rate / (self.np_module.sqrt(v_hat) + epsilon) * m_hat + self.momentum * (self.beta - self.prev_beta)
-                    self.prev_beta = self.beta.copy()
-                else:
-                    self.beta -= self.learning_rate / (self.np_module.sqrt(v_hat) + epsilon) * m_hat
+            t += 1
+            gradient = self.compute_gradient(self.beta, self.X, self.y)
+            m = beta1 * m + (1 - beta1) * gradient
+            v = beta2 * v + (1 - beta2) * gradient ** 2
+            m_hat = m / (1 - beta1 ** t)
+            v_hat = v / (1 - beta2 ** t)
+            self.beta -= self.learning_rate / (self.np_module.sqrt(v_hat) + epsilon) * m_hat
 
 # Example usage:
 # gd = GradientDescent(X, y, beta, learning_rate=0.01, epochs=100, optimizer='adam', gradient_method='jax', lambda_param=0.1, cost_function='ridge')
@@ -142,7 +138,7 @@ class GradientDescent:
 class StochasticGradientDescent:
     def __init__(self, X, y, beta, learning_rate=0.01, epochs=100, momentum=0, 
                  optimizer='sgd', gradient_method='analytical', lambda_param=0.0,
-                 cost_function='ols', batch_size = None):
+                 cost_function='ols', batch_size = None, decay_rate = 0.9):
         self.X = X
         self.y = y
         self.beta = beta.copy()
@@ -154,6 +150,7 @@ class StochasticGradientDescent:
         self.lambda_param = lambda_param
         self.cost_function = cost_function
         self.n = len(y)
+        self.decay_rate = decay_rate
         if batch_size == None:
             self.batch_size = len(y)//10
         else:
@@ -255,20 +252,20 @@ class StochasticGradientDescent:
 
     def _rmsprop(self):
         epsilon = 1e-8
-        decay_rate = 0.9
         G = self.np_module.zeros_like(self.beta)
+        velocity = self.np_module.zeros_like(self.beta)
         for _ in range(self.epochs):
-            for _ in range(self.n):
-                random_index = np.random.randint(self.n)
-                X_random = self.X[random_index].reshape(1, -1)
-                y_random = self.y[random_index]
-                gradient = self.compute_gradient(self.beta, X_random, y_random)
-                G = decay_rate * G + (1 - decay_rate) * gradient ** 2
-                if self.momentum == 1:
-                    self.beta -= self.learning_rate / (self.np_module.sqrt(G) + epsilon) * gradient + self.momentum * (self.beta - self.prev_beta)
-                    self.prev_beta = self.beta.copy()
-                else:
-                    self.beta -= self.learning_rate / (self.np_module.sqrt(G) + epsilon) * gradient
+            #shuffle X and Y while maintaining pairs
+            indices = np.random.permutation(self.n)
+            X_shuff = self.X[indices]
+            y_shuff = self.y[indices]
+            batch_start = np.random.randint(0, self.n - self.batch_size)
+            y_batch = y_shuff[batch_start:batch_start + self.batch_size]
+            X_batch = X_shuff[batch_start:batch_start + self.batch_size,:]
+            gradient = self.compute_gradient(self.beta, X_batch, y_batch)
+            G = self.decay_rate * G + (1 - self.decay_rate) * gradient ** 2
+            velocity = self.momentum * velocity - self.learning_rate / (self.np_module.sqrt(G) + epsilon) * gradient
+            self.beta += velocity
 
     def _adam(self):
         epsilon = 1e-8
@@ -278,21 +275,19 @@ class StochasticGradientDescent:
         v = self.np_module.zeros_like(self.beta)
         t = 0
         for _ in range(self.epochs):
-            for _ in range(self.n):
-                t += 1
-                random_index = np.random.randint(self.n)
-                X_random = self.X[random_index].reshape(1, -1)
-                y_random = self.y[random_index]
-                gradient = self.compute_gradient(self.beta, X_random, y_random)
-                m = beta1 * m + (1 - beta1) * gradient
-                v = beta2 * v + (1 - beta2) * gradient ** 2
-                m_hat = m / (1 - beta1 ** t)
-                v_hat = v / (1 - beta2 ** t)
-                if self.momentum == 1:
-                    self.beta -= self.learning_rate / (self.np_module.sqrt(v_hat) + epsilon) * m_hat + self.momentum * (self.beta - self.prev_beta)
-                    self.prev_beta = self.beta.copy()
-                else:
-                    self.beta -= self.learning_rate / (self.np_module.sqrt(v_hat) + epsilon) * m_hat
+            t += 1
+            indices = np.random.permutation(self.n)
+            X_shuff = self.X[indices]
+            y_shuff = self.y[indices]
+            batch_start = np.random.randint(0, self.n - self.batch_size)
+            y_batch = y_shuff[batch_start:batch_start + self.batch_size]
+            X_batch = X_shuff[batch_start:batch_start + self.batch_size,:]
+            gradient = self.compute_gradient(self.beta, self.X, self.y)
+            m = beta1 * m + (1 - beta1) * gradient
+            v = beta2 * v + (1 - beta2) * gradient ** 2
+            m_hat = m / (1 - beta1 ** t)
+            v_hat = v / (1 - beta2 ** t)
+            self.beta -= self.learning_rate / (self.np_module.sqrt(v_hat) + epsilon) * m_hat
 
 # Example usage:
 # sgd = StochasticGradientDescent(X, y, beta, learning_rate=0.01, epochs=100, optimizer='adam',gradient_method='jax', lambda_param=0.1, cost_function='ridge')
