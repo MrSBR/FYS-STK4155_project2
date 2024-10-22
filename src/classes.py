@@ -9,7 +9,7 @@ class GradientDescent:
                  optimizer='gd', gradient_method='analytical', lambda_param=0.0, cost_function='ols'):
         self.X = X
         self.y = y
-        self.beta = beta
+        self.beta = beta.copy()
         self.learning_rate = learning_rate
         self.epochs = epochs
         self.momentum = momentum
@@ -18,7 +18,6 @@ class GradientDescent:
         self.lambda_param = lambda_param
         self.cost_function = cost_function
         self.n = len(y)
-        self.prev_beta = beta.copy() if momentum == 1 else None
 
         # Select the numpy module and gradient computation function
         if self.gradient_method == 'analytical':
@@ -41,7 +40,7 @@ class GradientDescent:
 
     def _compute_gradient_analytical(self, beta, Xj, yj):
         y_pred = Xj @ beta
-        gradient = Xj.T @ (y_pred - yj)
+        gradient = 1/self.n * Xj.T @ (y_pred - yj)
         if self.cost_function == 'ridge':
             gradient += self.lambda_param * beta
         return gradient
@@ -84,27 +83,21 @@ class GradientDescent:
         return self.beta
 
     def _gd(self):
+        velocity = self.np_module.zeros_like(self.beta)
         for _ in range(self.epochs):
-            for j in range(self.n):
-                gradient = self.compute_gradient(self.beta, self.X[j], self.y[j])
-                if self.momentum == 1:
-                    self.beta -= self.learning_rate * gradient + self.momentum * (self.beta - self.prev_beta)
-                    self.prev_beta = self.beta.copy()
-                else:
-                    self.beta -= self.learning_rate * gradient
+            gradient = self.compute_gradient(self.beta, self.X, self.y)
+            velocity = self.momentum * velocity - self.learning_rate * gradient
+            self.beta += velocity
 
     def _adagrad(self):
         epsilon = 1e-8
         G = self.np_module.zeros_like(self.beta)
+        velocity = self.np_module.zeros_like(self.beta)
         for _ in range(self.epochs):
-            for j in range(self.n):
-                gradient = self.compute_gradient(self.beta, self.X[j], self.y[j])
-                G += gradient ** 2
-                if self.momentum == 1:
-                    self.beta -= self.learning_rate / (self.np_module.sqrt(G) + epsilon) * gradient + self.momentum * (self.beta - self.prev_beta)
-                    self.prev_beta = self.beta.copy()
-                else:
-                    self.beta -= self.learning_rate / (self.np_module.sqrt(G) + epsilon) * gradient
+            gradient = self.compute_gradient(self.beta, self.X, self.y)
+            G += gradient ** 2
+            velocity = self.momentum * velocity - self.learning_rate / (self.np_module.sqrt(G) + epsilon) * gradient
+            self.beta += velocity
 
     def _rmsprop(self):
         epsilon = 1e-8
