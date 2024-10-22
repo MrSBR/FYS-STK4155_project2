@@ -141,10 +141,11 @@ class GradientDescent:
 
 class StochasticGradientDescent:
     def __init__(self, X, y, beta, learning_rate=0.01, epochs=100, momentum=0, 
-                 optimizer='sgd', gradient_method='analytical', lambda_param=0.0, cost_function='ols'):
+                 optimizer='sgd', gradient_method='analytical', lambda_param=0.0,
+                 cost_function='ols', batch_size = None):
         self.X = X
         self.y = y
-        self.beta = beta
+        self.beta = beta.copy()
         self.learning_rate = learning_rate
         self.epochs = epochs
         self.momentum = momentum
@@ -153,7 +154,10 @@ class StochasticGradientDescent:
         self.lambda_param = lambda_param
         self.cost_function = cost_function
         self.n = len(y)
-        self.prev_beta = beta.copy() if momentum == 1 else None
+        if batch_size == None:
+            self.batch_size = len(y)//10
+        else:
+            self.batch_size = batch_size
 
         # Select the numpy module and gradient computation function
         if self.gradient_method == 'analytical':
@@ -176,7 +180,7 @@ class StochasticGradientDescent:
 
     def _compute_gradient_analytical(self, beta, Xj, yj):
         y_pred = Xj @ beta
-        gradient = Xj.T @ (y_pred - yj)
+        gradient = 1/self.batch_size * Xj.T @ (y_pred - yj)
         if self.cost_function == 'ridge':
             gradient += self.lambda_param * beta
         return gradient
@@ -219,33 +223,35 @@ class StochasticGradientDescent:
         return self.beta
 
     def _sgd(self):
+        velocity = self.np_module.zeros_like(self.beta)
         for _ in range(self.epochs):
-            for _ in range(self.n):
-                random_index = np.random.randint(self.n)
-                X_random = self.X[random_index].reshape(1, -1)
-                y_random = self.y[random_index]
-                gradient = self.compute_gradient(self.beta, X_random, y_random)
-                if self.momentum == 1:
-                    self.beta -= self.learning_rate * gradient + self.momentum * (self.beta - self.prev_beta)
-                    self.prev_beta = self.beta.copy()
-                else:
-                    self.beta -= self.learning_rate * gradient
+            #shuffle X and Y while maintaining pairs
+            indices = np.random.permutation(self.n)
+            X_shuff = self.X[indices]
+            y_shuff = self.y[indices]
+            batch_start = np.random.randint(0, self.n - self.batch_size)
+            y_batch = y_shuff[batch_start:batch_start + self.batch_size]
+            X_batch = X_shuff[batch_start:batch_start + self.batch_size,:]
+            gradient = self.compute_gradient(self.beta, X_batch, y_batch)
+            velocity = self.momentum * velocity - self.learning_rate * gradient
+            self.beta += velocity
 
     def _adagrad(self):
         epsilon = 1e-8
         G = self.np_module.zeros_like(self.beta)
+        velocity = self.np_module.zeros_like(self.beta)
         for _ in range(self.epochs):
-            for _ in range(self.n):
-                random_index = np.random.randint(self.n)
-                X_random = self.X[random_index].reshape(1, -1)
-                y_random = self.y[random_index]
-                gradient = self.compute_gradient(self.beta, X_random, y_random)
-                G += gradient ** 2
-                if self.momentum == 1:
-                    self.beta -= self.learning_rate / (self.np_module.sqrt(G) + epsilon) * gradient + self.momentum * (self.beta - self.prev_beta)
-                    self.prev_beta = self.beta.copy()
-                else:
-                    self.beta -= self.learning_rate / (self.np_module.sqrt(G) + epsilon) * gradient
+            #shuffle X and Y while maintaining pairs
+            indices = np.random.permutation(self.n)
+            X_shuff = self.X[indices]
+            y_shuff = self.y[indices]
+            batch_start = np.random.randint(0, self.n - self.batch_size)
+            y_batch = y_shuff[batch_start:batch_start + self.batch_size]
+            X_batch = X_shuff[batch_start:batch_start + self.batch_size,:]
+            gradient = self.compute_gradient(self.beta, X_batch, y_batch)
+            G += gradient ** 2
+            velocity = self.momentum * velocity - self.learning_rate / (self.np_module.sqrt(G) + epsilon) * gradient
+            self.beta += velocity
 
     def _rmsprop(self):
         epsilon = 1e-8

@@ -8,7 +8,7 @@ def load_simple_data(N_samples: int = 100, noise: float = 0.0, seed: int = 2024)
     X = np.column_stack((np.ones(N_samples), x, x**2))
     a_true = np.random.rand(3)  # True coefficients a_0, a_1, a_2
     y = a_true[0] + a_true[1] * x + a_true[2] * x**2 + np.random.randn(N_samples) * noise  # y with some noise
-    return X, y, x
+    return X, y, x, a_true
 
 def load_wisconsin_data():
     data = np.loadtxt("../data/wisconsin_data.csv", delimiter=",")
