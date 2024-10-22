@@ -53,6 +53,10 @@ def sigmoid(z):
     return 1 / (1 + np.exp(-z))
 
 
+def linear(z):
+     return z
+
+
 def softmax(z):
     """Compute softmax values for each set of scores in the rows of the matrix z.
     Used with batched input data."""
@@ -100,12 +104,17 @@ import autograd.numpy as anp
 def cross_entropy(predict, target):
     return np.sum(-target * np.log(predict))
 
-def cost(input, layers, activation_funcs, target):
+def cost_mse(input, layers, activation_funcs, target):
     predict = feed_forward_batch(input, layers, activation_funcs)
-    return cross_entropy(predict, target)
+    return mse(predict, target) #changed to cost mse
+
+def cost_cs(input, layers, activation_funcs, target):
+    predict = feed_forward_batch(input, layers, activation_funcs)
+    return cross_entropy(predict, target) #cost cs
 
 def train_network(
-    inputs, targets, layers, activation_funcs, learning_rate=0.001, epochs=1000):
+    inputs, targets, layers, activation_funcs, cost, learning_rate=0.001, epochs=1000,
+    ):
     gradient_func = grad(cost, 1)  # Taking the gradient wrt. the second input to the cost function, i.e. the layers
     layers_grad = gradient_func(inputs, layers, activation_funcs, targets)  # Don't change this
     for i in range(epochs):
