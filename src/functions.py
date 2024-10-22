@@ -94,20 +94,11 @@ def create_layers_batch(network_input_size, layer_output_sizes):
         i_size = layer_output_size
     return layers
 
-def feed_forward_batch(inputs, layers, activation_funcs):
-    a = inputs
-    for (W, b), activation_func in zip(layers, activation_funcs):
-        z = np.einsum("ij,kj->ki", W, a) + b
-        a = activation_func(z)
-    return a
-
-
 from autograd import grad
 import autograd.numpy as anp
 
 def cross_entropy(predict, target):
     return np.sum(-target * np.log(predict))
-
 
 def cost(input, layers, activation_funcs, target):
     predict = feed_forward_batch(input, layers, activation_funcs)
@@ -122,7 +113,9 @@ def train_network(
         for (W, b), (W_g, b_g) in zip(layers, layers_grad):
             W -= learning_rate * W_g
             b -= learning_rate * b_g
+    return layers
 
+def feed_forward_batch(inputs, layers, activation_funcs):
     a = inputs
     for (W, b), activation_func in zip(layers, activation_funcs):
         z = np.einsum("ij,kj->ki", W, a) + b
