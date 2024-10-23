@@ -293,3 +293,39 @@ class StochasticGradientDescent:
 # sgd = StochasticGradientDescent(X, y, beta, learning_rate=0.01, epochs=100, optimizer='adam',gradient_method='jax', lambda_param=0.1, cost_function='ridge')
 # optimized_beta = sgd.optimize()
 
+
+class LogisticRegressionGD:
+    def __init__(self, learning_rate=0.01, n_iter=1000, lambda_reg=0.0):
+        self.learning_rate = learning_rate
+        self.n_iter = n_iter
+        self.lambda_reg = lambda_reg
+        self.beta = None
+
+    def sigmoid(self, z):
+        return 1 / (1 + np.exp(-z))
+
+    def cost_function(self, X, y):
+        N = len(y)
+        p = self.sigmoid(X @ self.beta)
+        cost = (-1 / N) * (y.T @ np.log(p) + (1 - y).T @ np.log(1 - p))
+        reg_term = (self.lambda_reg / (2 * N)) * np.sum(self.beta[1:] ** 2)
+        return cost + reg_term
+
+    def fit(self, X, y):
+        N, m = X.shape
+        self.beta = np.zeros(m).reshape(-1, 1)
+        cost_history = []
+
+        for _ in range(self.n_iter):
+            p = self.sigmoid(X @ self.beta)
+            gradient = (1 / N) * X.T @ (p - y)
+            # Apply regularization (exclude bias term)
+            gradient[1:] += (self.lambda_reg / N) * self.beta[1:]
+            self.beta -= self.learning_rate * gradient
+            cost = self.cost_function(X, y)
+            cost_history.append(cost)
+
+        return cost_history
+
+    def predict(self, X):
+        return self.sigmoid(X @ self.beta)
