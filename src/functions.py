@@ -39,6 +39,41 @@ def scale_train_test(train: np.ndarray, test:np.ndarray, with_std:bool=True, wit
 
 def save_to_results(filename: str) -> None:
 	plt.savefig(fname = path_to_root+'/results/'+filename)
+     
+
+def plot_metric_vs_learning_rate(learning_rates, metric_list, metric_name, ylabel, title):
+    """
+    Plots a given metric (e.g., MSE, Accuracy, R2) against a list of learning rates.
+
+    Parameters:
+    - learning_rates: List of learning rates
+    - metric_list: List of metric values (e.g., MSE, Accuracy, R2)
+    - metric_name: The name of the metric being plotted (e.g., 'MSE', 'Accuracy')
+    - ylabel: Label for the y-axis
+    - title: Title of the plot
+    """
+    plt.figure(figsize=(8, 6))
+    plt.plot(learning_rates, metric_list, marker='o', linestyle='-', color='b', label=metric_name)
+
+    # Log scale for x-axis (learning rates) and linear scale for y-axis (metric)
+    plt.xscale('log')  # Learning rates are typically plotted on a log scale
+    plt.yscale('linear')  # Metric can be kept on a linear scale
+
+    # Labels and title
+    plt.xlabel('Learning Rate (log scale)')
+    plt.ylabel(ylabel)
+    plt.title(title)
+    plt.grid(True)
+    plt.legend()
+
+    # Show the plot
+    plt.show()
+
+
+# Example usage:
+# plot_metric_vs_learning_rate(learning_rates, mse_list, 'MSE', 'MSE (linear scale)', 'MSE vs Learning Rate')
+# plot_metric_vs_learning_rate(learning_rates, r2_list, 'R2', 'R2 (linear scale)', 'R2 vs Learning Rate')
+
 
 # Defining some activation functions
 def ReLU(z):
