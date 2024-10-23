@@ -22,6 +22,23 @@ def beta_Ridge(X: np.ndarray, z: np.ndarray, lamda: float) -> np.ndarray:
 	betaRidge =  np.linalg.inv(X.T @ X + I*lamda) @ X.T @ z
 	return betaRidge
 
+# Design matrix based on n polynomial degrees
+def create_design_matrix(x: np.ndarray, y: np.ndarray, n:int ) -> np.ndarray:
+	if len(x.shape) > 1:
+		x = np.ravel(x)
+		y = np.ravel(y)
+
+	N = len(x)
+	l = int((n+1)*(n+2)/2)		# Number of elements in beta
+	X = np.ones((N,l))
+
+	for i in range(1,n+1):
+		q = int((i)*(i+1)/2)
+		for k in range(i+1):
+			X[:,q+k] = (x**(i-k))*(y**k)
+    
+	return X 
+
 # Calculating MSE and R2
 def mse(true: np.ndarray, pred) -> np.ndarray:
 	mse = np.mean((true - pred)**2)
