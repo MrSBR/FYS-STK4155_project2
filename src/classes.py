@@ -3,6 +3,9 @@ import autograd.numpy as anp
 from autograd import grad
 import jax.numpy as jnp
 from jax import grad as jax_grad
+import torch
+import torch.nn as nn
+import torch.optim as optim
 
 class GradientDescent:
     def __init__(self, X, y, beta, learning_rate=0.01, epochs=100, momentum=0,
@@ -329,3 +332,23 @@ class LogisticRegressionGD:
 
     def predict(self, X):
         return self.sigmoid(X @ self.beta)
+
+
+# Define the neural network model
+class RegClasNN(nn.Module):
+    def __init__(self, input_size, hidden_size1, hidden_size2, output_size):
+        super(RegClasNN, self).__init__()
+        self.fc1 = nn.Linear(input_size, hidden_size1)
+        self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(hidden_size1, hidden_size2)
+        self.fc3 = nn.Linear(hidden_size2, output_size)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        out = self.fc1(x)
+        out = self.relu(out)
+        out = self.fc2(out)
+        out = self.relu(out)
+        out = self.fc3(out)  # No activation on the output for regression (linear)
+        out = self.sigmoid(out)
+        return out

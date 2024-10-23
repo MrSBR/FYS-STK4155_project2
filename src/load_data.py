@@ -12,14 +12,12 @@ def load_simple_data(N_samples: int = 100, noise: float = 0.0, seed: int = 2024)
     return X, y, x, a_true
 
 def load_wisconsin_data():
-    # Read the data into a pandas DataFrame
-    data = pd.read_csv("../../data/Wisconsin.csv")
+    # Prepare the dataset
+    data = pd.read_csv('../../data/Wisconsin.csv')
 
-    # Change 'B' to 1 and 'M' to 2 in column 2
-    data.loc[data['diagnosis'] == 'B', 'diagnosis'] = 0
-    data.loc[data['diagnosis'] == 'M', 'diagnosis'] = 1
+    # Select features and target (radius_mean and texture_mean, diagnosis)
+    X = data[['radius_mean', 'texture_mean']].values
+    y = data['diagnosis'].apply(lambda x: 1 if x == 'M' else 0).values.reshape(-1, 1)
 
-    x = data['area_mean']
-    y = data['diagnosis']
-    return x, y
+    return X, y
 

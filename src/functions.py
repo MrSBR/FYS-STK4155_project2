@@ -22,23 +22,6 @@ def beta_Ridge(X: np.ndarray, z: np.ndarray, lamda: float) -> np.ndarray:
 	betaRidge =  np.linalg.inv(X.T @ X + I*lamda) @ X.T @ z
 	return betaRidge
 
-# Design matrix based on n polynomial degrees
-def create_design_matrix(x: np.ndarray, y: np.ndarray, n:int ) -> np.ndarray:
-	if len(x.shape) > 1:
-		x = np.ravel(x)
-		y = np.ravel(y)
-
-	N = len(x)
-	l = int((n+1)*(n+2)/2)		# Number of elements in beta
-	X = np.ones((N,l))
-
-	for i in range(1,n+1):
-		q = int((i)*(i+1)/2)
-		for k in range(i+1):
-			X[:,q+k] = (x**(i-k))*(y**k)
-    
-	return X 
-
 # Calculating MSE and R2
 def mse(true: np.ndarray, pred) -> np.ndarray:
 	mse = np.mean((true - pred)**2)
@@ -56,7 +39,6 @@ def scale_train_test(train: np.ndarray, test:np.ndarray, with_std:bool=True, wit
 
 def save_to_results(filename: str) -> None:
 	plt.savefig(fname = path_to_root+'/results/'+filename)
-	
 
 # Defining some activation functions
 def ReLU(z):
@@ -65,7 +47,6 @@ def ReLU(z):
 def leaky_ReLU(z, alpha=0.01):
     return np.where(z > 0, z, alpha*z)
 
-
 def sigmoid(z):
     return 1 / (1 + np.exp(-z))
 
@@ -73,13 +54,11 @@ def sigmoid(z):
 def linear(z):
      return z
 
-
 def softmax(z):
     """Compute softmax values for each set of scores in the rows of the matrix z.
     Used with batched input data."""
     e_z = np.exp(z - np.max(z, axis=0))
     return e_z / np.sum(e_z, axis=1)[:, np.newaxis]
-
 
 def softmax_vec(z):
     """Compute softmax values for each set of scores in the vector z.
@@ -100,7 +79,6 @@ def accuracy(predictions, targets):
         true_labels = targets.flatten()
     
     return accuracy_score(true_labels, predicted_labels)
-
 
 
 def create_layers_batch(network_input_size, layer_output_sizes):
@@ -129,21 +107,31 @@ def cost_cs(input, layers, activation_funcs, target):
     predict = feed_forward_batch(input, layers, activation_funcs)
     return cross_entropy(predict, target) #cost cs
 
-def train_network(
-    inputs, targets, layers, activation_funcs, cost, learning_rate=0.001, epochs=1000,
-    ):
-    gradient_func = grad(cost, 1)  # Taking the gradient wrt. the second input to the cost function, i.e. the layers
-    layers_grad = gradient_func(inputs, layers, activation_funcs, targets)  # Don't change this
+def train_network(inputs, targets, layers, activation_funcs, cost, learning_rate=0.001, epochs=1000):
+    gradient_func = grad(cost, 1)  # Gradient wrt the second input (layers)
+    
     for i in range(epochs):
         layers_grad = gradient_func(inputs, layers, activation_funcs, targets)
-        for (W, b), (W_g, b_g) in zip(layers, layers_grad):
+        for idx, ((W, b), (W_g, b_g)) in enumerate(zip(layers, layers_grad)):
             W -= learning_rate * W_g
             b -= learning_rate * b_g
+            layers[idx] = (W, b)  # Ensure that each layer is updated as a tuple (W, b)
+        
+        # Print layer shapes during training for debugging
+        if i % 100 == 0:
+            print(f"Epoch {i}: Layer shapes:")
+            for idx, (W, b) in enumerate(layers):
+                print(f"Layer {idx}: W shape = {W.shape}, b shape = {b.shape}")
+    
     return layers
+
+
 
 def feed_forward_batch(inputs, layers, activation_funcs):
     a = inputs
-    for (W, b), activation_func in zip(layers, activation_funcs):
+    for i, ((W, b), activation_func) in enumerate(zip(layers, activation_funcs)):
+        print(f"Layer {i}: W shape = {W.shape}, b shape = {b.shape}")
         z = np.einsum("ij,kj->ki", W, a) + b
         a = activation_func(z)
     return a
+
