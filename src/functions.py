@@ -60,8 +60,8 @@ def plot_metric_vs_learning_rate(learning_rates, metric_list, metric_name, ylabe
     plt.yscale('linear')  # Metric can be kept on a linear scale
 
     # Labels and title
-    plt.xlabel('Learning Rate (log scale)')
-    plt.ylabel(ylabel)
+    plt.xlabel(ylabel)
+    plt.ylabel(metric_name)
     plt.title(title)
     plt.grid(True)
     plt.legend()
