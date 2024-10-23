@@ -13,6 +13,7 @@ def load_simple_data(N_samples: int = 100, noise: float = 0.0, seed: int = 2024)
 
 def load_wisconsin_data():
     # Prepare the dataset
+    np.random.seed(2024)
     data = pd.read_csv('../../data/Wisconsin.csv')
 
     # Select features and target (radius_mean and texture_mean, diagnosis)

@@ -346,9 +346,9 @@ class RegClasNN(nn.Module):
 
     def forward(self, x):
         out = self.fc1(x)
-        out = self.relu(out)
+        out = self.sigmoid(out)
         out = self.fc2(out)
-        out = self.relu(out)
+        out = self.sigmoid(out)
         out = self.fc3(out)  # No activation on the output for regression (linear)
         out = self.sigmoid(out)
         return out
