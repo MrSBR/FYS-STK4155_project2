@@ -16,8 +16,8 @@ def load_wisconsin_data():
     data = pd.read_csv("../../data/Wisconsin.csv")
 
     # Change 'B' to 1 and 'M' to 2 in column 2
-    data.loc[data['diagnosis'] == 'B', 'diagnosis'] = 1
-    data.loc[data['diagnosis'] == 'M', 'diagnosis'] = 2
+    data.loc[data['diagnosis'] == 'B', 'diagnosis'] = 0
+    data.loc[data['diagnosis'] == 'M', 'diagnosis'] = 1
 
     x = data['area_mean']
     y = data['diagnosis']
