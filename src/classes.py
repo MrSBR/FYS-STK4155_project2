@@ -305,7 +305,7 @@ class StochasticGradientDescent:
 # optimized_beta = sgd.optimize()
 
 
-class LogisticRegressionGD:
+class LogisticRegressionSGD:
     def __init__(self, learning_rate=0.01, n_iter=1000, lambda_reg=0.0, batch_size=None, optimizer='sgd', gradient_method='analytical', decay_rate=0.9):
         self.learning_rate = learning_rate
         self.n_iter = n_iter

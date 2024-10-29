@@ -27,6 +27,9 @@ def mse(true: np.ndarray, pred) -> np.ndarray:
 	mse = np.mean((true - pred)**2)
 	return mse
 
+def mse_derivative(predictions: np.ndarray, targets: np.ndarray) -> np.ndarray:
+    return (predictions - targets) / targets.shape[0]
+
 def r2(true: np.ndarray, pred: np.ndarray) -> np.ndarray:
 	r2 = 1 - (np.sum((true - pred)**2) / np.sum((true - np.mean(true))**2))
 	return r2
@@ -175,27 +178,51 @@ def plot_accuracy_vs_learning_rates_logisticregression(accuracy_array, learning_
 def ReLU(z):
     return np.where(z > 0, z, 0)
 
+def ReLU_derivative(z):
+    return np.where(z > 0, 1, 0)
+
 def leaky_ReLU(z, alpha=0.01):
     return np.where(z > 0, z, alpha*z)
+
+def leaky_ReLU_derivative(z, alpha=0.01):
+    return np.where(z > 0, 1, alpha)
 
 def sigmoid(z):
     return 1 / (1 + np.exp(-z))
 
+def sigmoid_derivative(z):
+    sig = sigmoid(z)
+    return sig * (1 - sig)
 
 def linear(z):
      return z
 
-def softmax(z):
-    """Compute softmax values for each set of scores in the rows of the matrix z.
-    Used with batched input data."""
-    e_z = np.exp(z - np.max(z, axis=0))
-    return e_z / np.sum(e_z, axis=1)[:, np.newaxis]
+def linear_derivative(z):
+    return np.ones_like(z)
 
-def softmax_vec(z):
-    """Compute softmax values for each set of scores in the vector z.
-    Use this function when you use the activation function on one vector at a time"""
-    e_z = np.exp(z - np.max(z))
-    return e_z / np.sum(e_z)
+def softmax(z):
+    """Compute softmax values for each set of scores in z."""
+    e_z = np.exp(z - np.max(z, axis=1, keepdims=True))  # Numerical stability
+    return e_z / np.sum(e_z, axis=1, keepdims=True)
+
+def softmax_derivative(sigma, delta_next):
+    """
+    Compute the derivative of the softmax function.
+    
+    Parameters:
+    - sigma: The output of the softmax function, shape (batch_size, num_classes)
+    - delta_next: The gradient of the loss with respect to the output of softmax, shape (batch_size, num_classes)
+    
+    Returns:
+    - delta_current: The gradient of the loss with respect to the input of softmax, shape (batch_size, num_classes)
+    """
+    # Compute the dot product of delta_next and sigma along classes axis
+    dot_product = np.sum(delta_next * sigma, axis=1, keepdims=True)  # Shape: (batch_size, 1)
+    
+    # Compute delta_current
+    delta_current = sigma * (delta_next - dot_product)
+    return delta_current
+
 
 def accuracy(predictions, targets):
     # Convert predictions to label indices
@@ -212,6 +239,34 @@ def accuracy(predictions, targets):
     return accuracy_score(true_labels, predicted_labels)
 
 
+    #Cross Entropy
+def ce(predictions, targets):
+    epsilon = 1e-15  # Small value to prevent log(0)
+    predictions = np.clip(predictions, epsilon, 1 - epsilon)
+    loss = -np.sum(targets * np.log(predictions)) / targets.shape[0]
+    return loss
+
+    #Cross Entropy derivative
+def ce_derivative(predictions, targets):
+    epsilon = 1e-15  # Prevent division by zero
+    predictions = np.clip(predictions, epsilon, 1 - epsilon)
+    derivative = - (targets / predictions)
+    return derivative / targets.shape[0]
+
+    #Binary cross entropy
+def bce(predictions, targets):
+    epsilon = 1e-15  # Small value to prevent log(0)
+    predictions = np.clip(predictions, epsilon, 1 - epsilon)
+    loss = - (targets * np.log(predictions) + (1 - targets) * np.log(1 - predictions))
+    return np.mean(loss)
+
+def bce_derivative(predictions, targets):
+    epsilon = 1e-15  # Prevent division by zero
+    predictions = np.clip(predictions, epsilon, 1 - epsilon)
+    derivative = - (targets / predictions) + (1 - targets) / (1 - predictions)
+    derivative /= targets.shape[0]  # Average over the batch
+    return derivative
+
 def create_layers_batch(network_input_size, layer_output_sizes):
     layers = []
 
@@ -224,34 +279,7 @@ def create_layers_batch(network_input_size, layer_output_sizes):
         i_size = layer_output_size
     return layers
 
-from autograd import grad
-import autograd.numpy as anp
-
-
-def cost_mse(input, layers, activation_funcs, target):
-    predict = feed_forward_batch(input, layers, activation_funcs)
-    return mse(predict, target) #changed to cost mse
-
-def cross_entropy(predict, target):
-    return np.sum(-target * np.log(predict))
-
-def cost_cs(input, layers, activation_funcs, target):
-    predict = feed_forward_batch(input, layers, activation_funcs)
-    return cross_entropy(predict, target) #cost cs
-
-def cost_bce(input, layers, activation_funcs, target):
-    predict = feed_forward_batch(input, layers, activation_funcs)
-    return binary_cross_entropy(predict, target)
-
-def binary_cross_entropy(predict, target):
-    epsilon = 1e-15  # Small value to prevent log(0)
-    # Clip predictions to avoid log(0) and division by zero
-    predict = np.clip(predict, epsilon, 1 - epsilon)
-    # Compute binary cross-entropy loss
-    loss = - (target * np.log(predict) + (1 - target) * np.log(1 - predict))
-    return np.mean(loss)
-
-def train_network(inputs, targets, layers, activation_funcs, cost, learning_rate=0.001, epochs=1000):
+"""def train_network(inputs, targets, layers, activation_funcs, cost, learning_rate=0.001, epochs=1000):
     gradient_func = grad(cost, 1)  # Gradient wrt the second input (layers)
     
     for i in range(epochs):
@@ -267,6 +295,29 @@ def train_network(inputs, targets, layers, activation_funcs, cost, learning_rate
             for idx, (W, b) in enumerate(layers):
                 print(f"Layer {idx}: W shape = {W.shape}, b shape = {b.shape}")
     
+    return layers"""
+
+def train_network(inputs, targets, layers, activation_funcs, activation_ders, cost, cost_der, learning_rate=0.001, epochs=1000):
+    for epoch in range(epochs):
+        # Forward pass
+        predictions = feed_forward_batch(inputs, layers, activation_funcs)
+        
+        # Backward pass (compute gradients)
+        layer_grads = backpropagation(inputs, layers, activation_funcs, targets, activation_ders, cost_der)
+        
+        # Update weights and biases
+        for idx, ((W, b), (dW, db)) in enumerate(zip(layers, layer_grads)):
+            W -= learning_rate * dW
+            b -= learning_rate * db
+            layers[idx] = (W, b)
+        
+        # Optionally print loss and layer shapes for debugging
+        if epoch % 100 == 0:
+            loss = cost(predictions, targets)
+            print(f"Epoch {epoch}, Loss: {loss}")
+            for idx, (W, b) in enumerate(layers):
+                print(f"Layer {idx}: W shape = {W.shape}, b shape = {b.shape}")
+    
     return layers
 
 
@@ -278,3 +329,72 @@ def feed_forward_batch(inputs, layers, activation_funcs):
         a = activation_func(z)
     return a
 
+
+"""def backpropagation(inputs, layers, activation_funcs, targets, activation_ders, cost_der):
+    # Forward pass with saving intermediate values
+    layer_inputs, zs, predictions = feed_forward_saver(inputs, layers, activation_funcs)
+    
+    # Initialize gradients list
+    layer_grads = [None] * len(layers)
+    
+    # Compute error at output layer
+    delta = cost_der(predictions, targets) * activation_ders[-1](zs[-1])
+    
+    # Compute gradients for output layer
+    dW = np.dot(delta.T, layer_inputs[-1])
+    db = np.sum(delta, axis=0)
+    layer_grads[-1] = (dW, db)
+    
+    # Backpropagate the error
+    for i in reversed(range(len(layers) - 1)):
+        W_next = layers[i + 1][0]
+        delta = np.dot(delta, W_next) * activation_ders[i](zs[i])
+        dW = np.dot(delta.T, layer_inputs[i])
+        db = np.sum(delta, axis=0)
+        layer_grads[i] = (dW, db)
+    
+    return layer_grads"""
+
+def backpropagation(inputs, layers, activation_funcs, targets, activation_ders, cost_der=None):
+    # Forward pass with saving intermediate values
+    layer_inputs, zs, predictions = feed_forward_saver(inputs, layers, activation_funcs)
+    
+    # Initialize gradients list
+    layer_grads = [None] * len(layers)
+    
+    # Compute error at output layer
+    if activation_funcs[-1] == softmax:
+        # Compute the gradient of the loss with respect to the softmax output
+        delta_next = cost_der(predictions, targets)
+        # Compute the gradient with respect to z (input of softmax)
+        delta = softmax_derivative(predictions, delta_next)
+    else:
+        delta_next = cost_der(predictions, targets)
+        delta = delta_next * activation_ders[-1](zs[-1])
+    
+    # Compute gradients for output layer
+    dC_dW = np.dot(delta.T, layer_inputs[-1])  # Shape: (output_size, hidden_size)
+    dC_db = np.sum(delta, axis=0)
+    layer_grads[-1] = (dC_dW, dC_db)
+    
+    # Backpropagate the error through previous layers
+    for i in reversed(range(len(layers) - 1)):
+        W_next = layers[i + 1][0]
+        delta = np.dot(delta, W_next) * activation_ders[i](zs[i])
+        dC_dW = np.dot(delta.T, layer_inputs[i])
+        dC_db = np.sum(delta, axis=0)
+        layer_grads[i] = (dC_dW, dC_db)
+    
+    return layer_grads
+
+
+def feed_forward_saver(inputs, layers, activation_funcs):
+    a = inputs
+    layer_inputs = [a]
+    zs = []
+    for (W, b), activation_func in zip(layers, activation_funcs):
+        z = np.dot(a, W.T) + b
+        zs.append(z)
+        a = activation_func(z)
+        layer_inputs.append(a)
+    return layer_inputs[:-1], zs, a
