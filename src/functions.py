@@ -45,7 +45,7 @@ def save_to_results(filename: str) -> None:
      
 
 #Implementing plotting code
-def plot_mse_and_r2(mse_array, r2_array, learning_rates, epochs_list):
+def plot_mse_and_r2(mse_array, r2_array, learning_rates, epochs_list, filename):
     """
     Plots MSE and R^2 vs learning rate for each epoch.
 
@@ -81,9 +81,10 @@ def plot_mse_and_r2(mse_array, r2_array, learning_rates, epochs_list):
         plt.grid(True)
 
     plt.tight_layout()
+    plt.savefig(f'../results/{filename}.png')
     plt.show()
 
-def plot_accuracy_vs_learning_rate(accuracy_array, learning_rates, epochs_list, title):
+def plot_accuracy_vs_learning_rate(accuracy_array, learning_rates, epochs_list, title, filename):
     """
     Plots accuracy vs. learning rate for all epochs in the same figure.
     
@@ -103,6 +104,7 @@ def plot_accuracy_vs_learning_rate(accuracy_array, learning_rates, epochs_list, 
     plt.title(f'{title}')
     plt.legend()
     plt.grid(True)
+    plt.savefig(f'../results/{filename}.png')
     plt.show()
 
 
@@ -149,7 +151,7 @@ def plot_mse_and_r2_logisticreg(mse_array, r2_array, x_values, x_label, legend_v
     plt.show()
 
 
-def plot_accuracy_vs_learning_rates_logisticregression(accuracy_array, learning_rates, epochs_list, lambda_reg):
+def plot_accuracy_vs_learning_rates_logisticregression(accuracy_array, learning_rates, epochs_list, lambda_reg, filename):
     """
     Plots accuracy vs learning rate for different epochs.
 
@@ -169,6 +171,7 @@ def plot_accuracy_vs_learning_rates_logisticregression(accuracy_array, learning_
     plt.title(f'Accuracy vs Learning Rate Logistic Regression (Lambda = {lambda_reg})')
     plt.legend()
     plt.grid(True)
+    plt.savefig(f'../results/{filename}.png')
     plt.show()
 
 
