@@ -3,9 +3,7 @@ import autograd.numpy as anp
 from autograd import grad
 import jax.numpy as jnp
 from jax import grad as jax_grad
-import torch
 import torch.nn as nn
-import torch.optim as optim
 
 class GradientDescent:
     def __init__(self, X, y, beta, learning_rate=0.01, epochs=100, momentum=0,
@@ -162,7 +160,8 @@ class StochasticGradientDescent:
         # Select the numpy module and gradient computation function
         if self.gradient_method == 'analytical':
             self.np_module = np
-            self.compute_gradient = self._compute_gradient_analytical
+            if self.cost_function in ['ols', 'ridge', 'logistic']:
+                self.compute_gradient = self._compute_gradient_analytical
         elif self.gradient_method == 'autograd':
             self.np_module = anp
             self.X = anp.array(self.X)
@@ -179,10 +178,19 @@ class StochasticGradientDescent:
             raise ValueError(f"Unknown gradient method: {self.gradient_method}")
 
     def _compute_gradient_analytical(self, beta, Xj, yj):
-        y_pred = Xj @ beta
-        gradient = 1/self.batch_size * Xj.T @ (y_pred - yj)
-        if self.cost_function == 'ridge':
-            gradient += self.lambda_param * beta
+        if self.cost_function in ['ols', 'ridge']:
+            y_pred = Xj @ beta
+            gradient = (1 / self.batch_size) * Xj.T @ (y_pred - yj)
+            if self.cost_function == 'ridge':
+                gradient += (self.lambda_param / self.batch_size) * beta
+        elif self.cost_function == 'logistic':
+            z = Xj @ beta
+            p = 1 / (1 + self.np_module.exp(-z))
+            gradient = (1 / self.batch_size) * Xj.T @ (p - yj)
+            if self.lambda_param > 0:
+                gradient[1:] += (self.lambda_param / self.batch_size) * beta[1:]
+        else:
+            raise ValueError("Unsupported cost_function")
         return gradient
 
     def _compute_loss_autograd(self, beta, Xj, yj):
@@ -298,57 +306,68 @@ class StochasticGradientDescent:
 
 
 class LogisticRegressionGD:
-    def __init__(self, learning_rate=0.01, n_iter=1000, lambda_reg=0.0):
+    def __init__(self, learning_rate=0.01, n_iter=1000, lambda_reg=0.0, batch_size=None, optimizer='sgd', gradient_method='analytical', decay_rate=0.9):
         self.learning_rate = learning_rate
         self.n_iter = n_iter
         self.lambda_reg = lambda_reg
+        self.batch_size = batch_size
+        self.optimizer = optimizer
+        self.gradient_method = gradient_method
+        self.decay_rate = decay_rate
         self.beta = None
-
-    def sigmoid(self, z):
-        return 1 / (1 + np.exp(-z))
-
-    def cost_function(self, X, y):
-        N = len(y)
-        p = self.sigmoid(X @ self.beta)
-        cost = (-1 / N) * (y.T @ np.log(p) + (1 - y).T @ np.log(1 - p))
-        reg_term = (self.lambda_reg / (2 * N)) * np.sum(self.beta[1:] ** 2)
-        return cost + reg_term
 
     def fit(self, X, y):
         N, m = X.shape
-        self.beta = np.zeros(m).reshape(-1, 1)
-        cost_history = []
+        # Add bias term
+        X_bias = np.hstack([np.ones((N, 1)), X])
+        m = X_bias.shape[1]
+        self.beta = np.zeros((m, 1))
 
-        for _ in range(self.n_iter):
-            p = self.sigmoid(X @ self.beta)
-            gradient = (1 / N) * X.T @ (p - y)
-            # Apply regularization (exclude bias term)
-            gradient[1:] += (self.lambda_reg / N) * self.beta[1:]
-            self.beta -= self.learning_rate * gradient
-            cost = self.cost_function(X, y)
-            cost_history.append(cost)
+        # Initialize the optimizer
+        sgd = StochasticGradientDescent(
+            X=X_bias,
+            y=y,
+            beta=self.beta,
+            learning_rate=self.learning_rate,
+            epochs=self.n_iter,
+            momentum=0,
+            optimizer=self.optimizer,
+            gradient_method=self.gradient_method,
+            lambda_param=self.lambda_reg,
+            cost_function='logistic',
+            batch_size=self.batch_size,
+            decay_rate=self.decay_rate
+        )
 
-        return cost_history
+        # Optimize beta
+        self.beta = sgd.optimize()
+        return self
+
+    def predict_proba(self, X):
+        N = X.shape[0]
+        X_bias = np.hstack([np.ones((N, 1)), X])
+        z = X_bias @ self.beta
+        return 1 / (1 + np.exp(-z))
 
     def predict(self, X):
-        return self.sigmoid(X @ self.beta)
+        return (self.predict_proba(X) >= 0.5).astype(int)
 
 
 # Define the neural network model
 class RegClasNN(nn.Module):
-    def __init__(self, input_size, hidden_size1, hidden_size2, output_size):
+    def __init__(self, input_size, hidden_size1, hidden_size2, output_size, activation_function, last_layer_activation):
         super(RegClasNN, self).__init__()
         self.fc1 = nn.Linear(input_size, hidden_size1)
-        self.relu = nn.ReLU()
         self.fc2 = nn.Linear(hidden_size1, hidden_size2)
         self.fc3 = nn.Linear(hidden_size2, output_size)
-        self.sigmoid = nn.Sigmoid()
+        self.activation = activation_function
+        self.lastlayeractivation = last_layer_activation
 
     def forward(self, x):
         out = self.fc1(x)
-        out = self.sigmoid(out)
+        out = self.activation(out)
         out = self.fc2(out)
-        out = self.sigmoid(out)
+        out = self.activation(out)
         out = self.fc3(out)  # No activation on the output for regression (linear)
-        out = self.sigmoid(out)
+        out = self.lastlayeractivation(out)
         return out

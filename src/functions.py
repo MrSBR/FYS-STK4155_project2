@@ -41,38 +41,133 @@ def save_to_results(filename: str) -> None:
 	plt.savefig(fname = path_to_root+'/results/'+filename)
      
 
-def plot_metric_vs_learning_rate(learning_rates, metric_list, metric_name, ylabel, title):
+def plot_mse_and_r2(mse_array, r2_array, learning_rates, epochs_list):
     """
-    Plots a given metric (e.g., MSE, Accuracy, R2) against a list of learning rates.
+    Plots MSE and R^2 vs learning rate for each epoch.
 
     Parameters:
-    - learning_rates: List of learning rates
-    - metric_list: List of metric values (e.g., MSE, Accuracy, R2)
-    - metric_name: The name of the metric being plotted (e.g., 'MSE', 'Accuracy')
-    - ylabel: Label for the y-axis
-    - title: Title of the plot
+    - mse_array: 2D numpy array of MSE values (learning_rates x epochs)
+    - r2_array: 2D numpy array of R^2 values (learning_rates x epochs)
+    - learning_rates: list of learning rates used
+    - epochs_list: list of epochs used
     """
-    plt.figure(figsize=(8, 6))
-    plt.plot(learning_rates, metric_list, marker='o', linestyle='-', color='b', label=metric_name)
+    
+    plt.figure(figsize=(12, 5))
 
-    # Log scale for x-axis (learning rates) and linear scale for y-axis (metric)
-    plt.xscale('log')  # Learning rates are typically plotted on a log scale
-    plt.yscale('linear')  # Metric can be kept on a linear scale
+    # Plot MSE
+    plt.subplot(1, 2, 1)
+    for idx, epoch in enumerate(epochs_list):
+        plt.plot(learning_rates, mse_array[:, idx], marker='o', linestyle='-', label=f'Epochs = {epoch}')
+        plt.xscale('log')
+        plt.xlabel('Learning Rate')
+        plt.ylabel('MSE')
+        plt.title('MSE vs Learning Rate')
+        plt.legend()
+        plt.grid(True)
 
-    # Labels and title
-    plt.xlabel(ylabel)
-    plt.ylabel(metric_name)
-    plt.title(title)
-    plt.grid(True)
+    # Plot R^2
+    plt.subplot(1, 2, 2)
+    for idx, epoch in enumerate(epochs_list):
+        plt.plot(learning_rates, r2_array[:, idx], marker='o', linestyle='-', label=f'Epochs = {epoch}')
+        plt.xscale('log')
+        plt.xlabel('Learning Rate')
+        plt.ylabel('R² Score')
+        plt.title('R² vs Learning Rate')
+        plt.legend()
+        plt.grid(True)
+
+    plt.tight_layout()
+    plt.show()
+
+def plot_accuracy_vs_learning_rate(accuracy_array, learning_rates, epochs_list, title):
+    """
+    Plots accuracy vs. learning rate for all epochs in the same figure.
+    
+    Parameters:
+    - accuracy_array: 2D numpy array of accuracy values (learning_rates x epochs)
+    - learning_rates: list of learning rates used
+    - epochs_list: list of epochs used
+    """
+    plt.figure(figsize=(10, 6))
+    
+    for idx, epoch in enumerate(epochs_list):
+        plt.plot(learning_rates, accuracy_array[:, idx], marker='o', linestyle='-', label=f'Epochs = {epoch}')
+    
+    plt.xscale('log')
+    plt.xlabel('Learning Rate')
+    plt.ylabel('Accuracy')
+    plt.title(f'{title}')
     plt.legend()
-
-    # Show the plot
+    plt.grid(True)
     plt.show()
 
 
-# Example usage:
-# plot_metric_vs_learning_rate(learning_rates, mse_list, 'MSE', 'MSE (linear scale)', 'MSE vs Learning Rate')
-# plot_metric_vs_learning_rate(learning_rates, r2_list, 'R2', 'R2 (linear scale)', 'R2 vs Learning Rate')
+def plot_mse_and_r2_logisticreg(mse_array, r2_array, x_values, x_label, legend_values, legend_label, x_scale='log'):
+    """
+    Plots MSE and R^2 vs x_values for different legend_values.
+
+    Parameters:
+    - mse_array: 2D numpy array of MSE values (len(x_values) x len(legend_values))
+    - r2_array: 2D numpy array of R^2 values (len(x_values) x len(legend_values))
+    - x_values: list of x-axis values
+    - x_label: label for the x-axis
+    - legend_values: list of values to use in the legend
+    - legend_label: label for the legend entries
+    - x_scale: scale for x-axis ('linear' or 'log')
+    """
+    plt.figure(figsize=(12, 5))
+
+    # Plot MSE
+    plt.subplot(1, 2, 1)
+    for idx, legend_val in enumerate(legend_values):
+        plt.plot(x_values, mse_array[:, idx], marker='o', linestyle='-', label=f'{legend_label} = {legend_val}')
+    if x_scale == 'log':
+        plt.xscale('log')
+    plt.xlabel(x_label)
+    plt.ylabel('MSE')
+    plt.title(f'MSE vs {x_label}')
+    plt.legend()
+    plt.grid(True)
+
+    # Plot R^2
+    plt.subplot(1, 2, 2)
+    for idx, legend_val in enumerate(legend_values):
+        plt.plot(x_values, r2_array[:, idx], marker='o', linestyle='-', label=f'{legend_label} = {legend_val}')
+    if x_scale == 'log':
+        plt.xscale('log')
+    plt.xlabel(x_label)
+    plt.ylabel('R² Score')
+    plt.title(f'R² vs {x_label}')
+    plt.legend()
+    plt.grid(True)
+
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_accuracy_vs_learning_rates_logisticregression(accuracy_array, learning_rates, epochs_list, lambda_reg):
+    """
+    Plots accuracy vs learning rate for different epochs.
+
+    Parameters:
+    - accuracy_array: 2D numpy array of accuracy values (learning_rates x epochs_list)
+    - learning_rates: list of learning rates used
+    - epochs_list: list of epochs used
+    """
+    plt.figure(figsize=(8, 6))
+    for idx, epoch in enumerate(epochs_list):
+        plt.plot(learning_rates, accuracy_array[:, idx], marker='o', linestyle='-', label=f'Epochs = {epoch}'
+        )
+
+    plt.xscale('log')
+    plt.xlabel('Learning Rate')
+    plt.ylabel('Accuracy')
+    plt.title(f'Accuracy vs Learning Rate Logistic Regression (Lambda = {lambda_reg})')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+
 
 
 # Defining some activation functions
@@ -131,16 +226,29 @@ def create_layers_batch(network_input_size, layer_output_sizes):
 from autograd import grad
 import autograd.numpy as anp
 
-def cross_entropy(predict, target):
-    return np.sum(-target * np.log(predict))
 
 def cost_mse(input, layers, activation_funcs, target):
     predict = feed_forward_batch(input, layers, activation_funcs)
     return mse(predict, target) #changed to cost mse
 
+def cross_entropy(predict, target):
+    return np.sum(-target * np.log(predict))
+
 def cost_cs(input, layers, activation_funcs, target):
     predict = feed_forward_batch(input, layers, activation_funcs)
     return cross_entropy(predict, target) #cost cs
+
+def cost_bce(input, layers, activation_funcs, target):
+    predict = feed_forward_batch(input, layers, activation_funcs)
+    return binary_cross_entropy(predict, target)
+
+def binary_cross_entropy(predict, target):
+    epsilon = 1e-15  # Small value to prevent log(0)
+    # Clip predictions to avoid log(0) and division by zero
+    predict = np.clip(predict, epsilon, 1 - epsilon)
+    # Compute binary cross-entropy loss
+    loss = - (target * np.log(predict) + (1 - target) * np.log(1 - predict))
+    return np.mean(loss)
 
 def train_network(inputs, targets, layers, activation_funcs, cost, learning_rate=0.001, epochs=1000):
     gradient_func = grad(cost, 1)  # Gradient wrt the second input (layers)
@@ -159,7 +267,6 @@ def train_network(inputs, targets, layers, activation_funcs, cost, learning_rate
                 print(f"Layer {idx}: W shape = {W.shape}, b shape = {b.shape}")
     
     return layers
-
 
 
 def feed_forward_batch(inputs, layers, activation_funcs):
