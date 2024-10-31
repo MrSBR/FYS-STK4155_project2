@@ -42,10 +42,12 @@ class GradientDescent:
             raise ValueError(f"Unknown gradient method: {self.gradient_method}")
 
     def _compute_gradient_analytical(self, beta, Xj, yj):
+        #yj and beta are (100,1) and (3,1) or (100,) and (3,) respectively
         y_pred = Xj @ beta
         gradient = 1/self.n * Xj.T @ (y_pred - yj)
         if self.cost_function == 'ridge':
-            gradient += self.lambda_param * beta
+            gradient[1:] += self.lambda_param * beta[1:] / self.n #div to be scaled
+             #avoid regularization of intercept
         return gradient
 
     def _compute_loss_autograd(self, beta, Xj, yj):
