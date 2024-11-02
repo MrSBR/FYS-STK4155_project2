@@ -40,6 +40,8 @@ class GradientDescent:
             self.compute_gradient = self._compute_gradient_jax
         else:
             raise ValueError(f"Unknown gradient method: {self.gradient_method}")
+        
+        self.velocity = self.np_module.zeros_like(self.beta)
 
     def _compute_gradient_analytical(self, beta, Xj, yj):
         #yj and beta are (100,1) and (3,1) or (100,) and (3,) respectively
@@ -88,11 +90,10 @@ class GradientDescent:
         return self.beta
 
     def _gd(self):
-        velocity = self.np_module.zeros_like(self.beta)
         for _ in range(self.epochs):
             gradient = self.compute_gradient(self.beta, self.X, self.y)
-            velocity = self.momentum * velocity - self.learning_rate * gradient
-            self.beta += velocity
+            self.velocity = self.momentum * self.velocity - self.learning_rate * gradient
+            self.beta += self.velocity
 
     def _adagrad(self):
         epsilon = 1e-8
