@@ -179,6 +179,8 @@ class StochasticGradientDescent:
             self.compute_gradient = self._compute_gradient_jax
         else:
             raise ValueError(f"Unknown gradient method: {self.gradient_method}")
+        
+        self.velocity = self.np_module.zeros_like(self.beta)
 
     def _compute_gradient_analytical(self, beta, Xj, yj):
         if self.cost_function in ['ols', 'ridge']:
@@ -234,52 +236,51 @@ class StochasticGradientDescent:
         return self.beta
 
     def _sgd(self):
-        velocity = self.np_module.zeros_like(self.beta)
         for _ in range(self.epochs):
-            #shuffle X and Y while maintaining pairs
             indices = np.random.permutation(self.n)
             X_shuff = self.X[indices]
             y_shuff = self.y[indices]
-            batch_start = np.random.randint(0, self.n - self.batch_size)
-            y_batch = y_shuff[batch_start:batch_start + self.batch_size]
-            X_batch = X_shuff[batch_start:batch_start + self.batch_size,:]
-            gradient = self.compute_gradient(self.beta, X_batch, y_batch)
-            velocity = self.momentum * velocity - self.learning_rate * gradient
-            self.beta += velocity
+            for batch_start in range(0, self.n, self.batch_size):
+                batch_end = min(batch_start+self.batch_size, self.n) #takes the remaining datapoints even if they are not batch_size amount
+                y_batch = y_shuff[batch_start:batch_end]
+                X_batch = X_shuff[batch_start:batch_end,:]
+                gradient = self.compute_gradient(self.beta, X_batch, y_batch)
+                self.velocity = self.momentum * self.velocity - self.learning_rate * gradient
+                self.beta += self.velocity
 
     def _adagrad(self):
         epsilon = 1e-8
         G = self.np_module.zeros_like(self.beta)
-        velocity = self.np_module.zeros_like(self.beta)
+        self.velocity = self.np_module.zeros_like(self.beta)
         for _ in range(self.epochs):
-            #shuffle X and Y while maintaining pairs
             indices = np.random.permutation(self.n)
             X_shuff = self.X[indices]
             y_shuff = self.y[indices]
-            batch_start = np.random.randint(0, self.n - self.batch_size)
-            y_batch = y_shuff[batch_start:batch_start + self.batch_size]
-            X_batch = X_shuff[batch_start:batch_start + self.batch_size,:]
-            gradient = self.compute_gradient(self.beta, X_batch, y_batch)
-            G += gradient ** 2
-            velocity = self.momentum * velocity - self.learning_rate / (self.np_module.sqrt(G) + epsilon) * gradient
-            self.beta += velocity
+            for batch_start in range(0, self.n, self.batch_size):
+                batch_end = min(batch_start+self.batch_size, self.n) #takes the remaining datapoints even if they are not batch_size amount
+                y_batch = y_shuff[batch_start:batch_end]
+                X_batch = X_shuff[batch_start:batch_end,:]
+                gradient = self.compute_gradient(self.beta, X_batch, y_batch)
+                G += gradient ** 2
+                self.velocity = self.momentum * self.velocity - self.learning_rate / (self.np_module.sqrt(G) + epsilon) * gradient
+                self.beta += self.velocity
 
     def _rmsprop(self):
         epsilon = 1e-8
         G = self.np_module.zeros_like(self.beta)
-        velocity = self.np_module.zeros_like(self.beta)
+        self.velocity = self.np_module.zeros_like(self.beta)
         for _ in range(self.epochs):
-            #shuffle X and Y while maintaining pairs
             indices = np.random.permutation(self.n)
             X_shuff = self.X[indices]
             y_shuff = self.y[indices]
-            batch_start = np.random.randint(0, self.n - self.batch_size)
-            y_batch = y_shuff[batch_start:batch_start + self.batch_size]
-            X_batch = X_shuff[batch_start:batch_start + self.batch_size,:]
-            gradient = self.compute_gradient(self.beta, X_batch, y_batch)
-            G = self.decay_rate * G + (1 - self.decay_rate) * gradient ** 2
-            velocity = self.momentum * velocity - self.learning_rate / (self.np_module.sqrt(G) + epsilon) * gradient
-            self.beta += velocity
+            for batch_start in range(0, self.n, self.batch_size):
+                batch_end = min(batch_start+self.batch_size, self.n) #takes the remaining datapoints even if they are not batch_size amount
+                y_batch = y_shuff[batch_start:batch_end]
+                X_batch = X_shuff[batch_start:batch_end,:]
+                gradient = self.compute_gradient(self.beta, X_batch, y_batch)
+                G = self.decay_rate * G + (1 - self.decay_rate) * gradient ** 2
+                self.velocity = self.momentum * self.velocity - self.learning_rate / (self.np_module.sqrt(G) + epsilon) * gradient
+                self.beta += self.velocity
 
     def _adam(self):
         epsilon = 1e-8
@@ -289,19 +290,20 @@ class StochasticGradientDescent:
         v = self.np_module.zeros_like(self.beta)
         t = 0
         for _ in range(self.epochs):
-            t += 1
             indices = np.random.permutation(self.n)
             X_shuff = self.X[indices]
             y_shuff = self.y[indices]
-            batch_start = np.random.randint(0, self.n - self.batch_size)
-            y_batch = y_shuff[batch_start:batch_start + self.batch_size]
-            X_batch = X_shuff[batch_start:batch_start + self.batch_size,:]
-            gradient = self.compute_gradient(self.beta, self.X, self.y)
-            m = beta1 * m + (1 - beta1) * gradient
-            v = beta2 * v + (1 - beta2) * gradient ** 2
-            m_hat = m / (1 - beta1 ** t)
-            v_hat = v / (1 - beta2 ** t)
-            self.beta -= self.learning_rate / (self.np_module.sqrt(v_hat) + epsilon) * m_hat
+            for batch_start in range(0, self.n, self.batch_size):
+                t += 1
+                batch_end = min(batch_start+self.batch_size, self.n) #takes the remaining datapoints even if they are not batch_size amount
+                y_batch = y_shuff[batch_start:batch_end]
+                X_batch = X_shuff[batch_start:batch_end,:]
+                gradient = self.compute_gradient(self.beta, X_batch, y_batch)
+                m = beta1 * m + (1 - beta1) * gradient
+                v = beta2 * v + (1 - beta2) * gradient ** 2
+                m_hat = m / (1 - beta1 ** t)
+                v_hat = v / (1 - beta2 ** t)
+                self.beta -= self.learning_rate / (self.np_module.sqrt(v_hat) + epsilon) * m_hat
 
 # Example usage:
 # sgd = StochasticGradientDescent(X, y, beta, learning_rate=0.01, epochs=100, optimizer='adam',gradient_method='jax', lambda_param=0.1, cost_function='ridge')
