@@ -34,12 +34,14 @@ def r2(true: np.ndarray, pred: np.ndarray) -> np.ndarray:
 	r2 = 1 - (np.sum((true - pred)**2) / np.sum((true - np.mean(true))**2))
 	return r2
 
+#scale the train and test data
 def scale_train_test(train: np.ndarray, test:np.ndarray, with_std:bool=True, with_mean:bool=True) -> np.ndarray:
 	scaler = StandardScaler(with_std=with_std, with_mean=with_mean) #Subtracting the mean and dividing by the standard deviation to scale/normalize the data
 	train = scaler.fit_transform(train)
 	test = scaler.transform(test)
 	return train, test
 
+#save plot to results
 def save_to_results(filename: str) -> None:
 	plt.savefig(fname = path_to_root+'/results/'+filename)
      
@@ -263,6 +265,7 @@ def bce(predictions, targets):
     loss = - (targets * np.log(predictions) + (1 - targets) * np.log(1 - predictions))
     return np.mean(loss)
 
+    #Binary cross entropy derivative
 def bce_derivative(predictions, targets):
     epsilon = 1e-15  # Prevent division by zero
     predictions = np.clip(predictions, epsilon, 1 - epsilon)
@@ -270,6 +273,7 @@ def bce_derivative(predictions, targets):
     derivative /= targets.shape[0]  # Average over the batch
     return derivative
 
+    #create a batch of layers for a neural network with random weights and biases
 def create_layers_batch(network_input_size, layer_output_sizes):
     layers = []
 
@@ -300,6 +304,7 @@ def create_layers_batch(network_input_size, layer_output_sizes):
     
     return layers"""
 
+    #trains network
 def train_network(inputs, targets, layers, activation_funcs, activation_ders, cost, cost_der, learning_rate=0.001, epochs=1000):
     for epoch in range(epochs):
         # Forward pass
@@ -323,7 +328,7 @@ def train_network(inputs, targets, layers, activation_funcs, activation_ders, co
     
     return layers
 
-
+    #feeds a batch of inputs forward
 def feed_forward_batch(inputs, layers, activation_funcs):
     a = inputs
     for i, ((W, b), activation_func) in enumerate(zip(layers, activation_funcs)):
@@ -358,6 +363,7 @@ def feed_forward_batch(inputs, layers, activation_funcs):
     
     return layer_grads"""
 
+    #performs backpropagation
 def backpropagation(inputs, layers, activation_funcs, targets, activation_ders, cost_der=None):
     # Forward pass with saving intermediate values
     layer_inputs, zs, predictions = feed_forward_saver(inputs, layers, activation_funcs)
@@ -390,7 +396,7 @@ def backpropagation(inputs, layers, activation_funcs, targets, activation_ders, 
     
     return layer_grads
 
-
+    #performs forward pass and additionally returns the input of each layer
 def feed_forward_saver(inputs, layers, activation_funcs):
     a = inputs
     layer_inputs = [a]
