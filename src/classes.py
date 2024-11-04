@@ -42,6 +42,10 @@ class GradientDescent:
             raise ValueError(f"Unknown gradient method: {self.gradient_method}")
         
         self.velocity = self.np_module.zeros_like(self.beta)
+        self.G = self.np_module.zeros_like(self.beta) #for adagrad and rmsprop
+        self.m = self.np_module.zeros_like(self.beta) #for adam
+        self.v = self.np_module.zeros_like(self.beta) #for adam
+        self.t = 0 #for adam
 
     def _compute_gradient_analytical(self, beta, Xj, yj):
         #yj and beta are (100,1) and (3,1) or (100,) and (3,) respectively
@@ -97,23 +101,19 @@ class GradientDescent:
 
     def _adagrad(self):
         epsilon = 1e-8
-        G = self.np_module.zeros_like(self.beta)
-        velocity = self.np_module.zeros_like(self.beta)
         for _ in range(self.epochs):
             gradient = self.compute_gradient(self.beta, self.X, self.y)
-            G += gradient ** 2
-            velocity = self.momentum * velocity - self.learning_rate / (self.np_module.sqrt(G) + epsilon) * gradient
-            self.beta += velocity
+            self.G += gradient ** 2
+            self.velocity = self.momentum * self.velocity - self.learning_rate / (self.np_module.sqrt(self.G) + epsilon) * gradient
+            self.beta += self.velocity
 
     def _rmsprop(self):
         epsilon = 1e-8
-        G = self.np_module.zeros_like(self.beta)
-        velocity = self.np_module.zeros_like(self.beta)
         for _ in range(self.epochs):
             gradient = self.compute_gradient(self.beta, self.X, self.y)
-            G = self.decay_rate * G + (1 - self.decay_rate) * gradient ** 2
-            velocity = self.momentum * velocity - self.learning_rate / (self.np_module.sqrt(G) + epsilon) * gradient
-            self.beta += velocity
+            self.G = self.decay_rate * self.G + (1 - self.decay_rate) * gradient ** 2
+            self.velocity = self.momentum * self.velocity - self.learning_rate / (self.np_module.sqrt(self.G) + epsilon) * gradient
+            self.beta += self.velocity
 
 
     def _adam(self):
@@ -122,16 +122,14 @@ class GradientDescent:
         epsilon = 1e-8
         beta1 = 0.9
         beta2 = 0.999
-        m = self.np_module.zeros_like(self.beta)
-        v = self.np_module.zeros_like(self.beta)
-        t = 0
+
         for _ in range(self.epochs):
-            t += 1
+            self.t += 1
             gradient = self.compute_gradient(self.beta, self.X, self.y)
-            m = beta1 * m + (1 - beta1) * gradient
-            v = beta2 * v + (1 - beta2) * gradient ** 2
-            m_hat = m / (1 - beta1 ** t)
-            v_hat = v / (1 - beta2 ** t)
+            self.m = beta1 * self.m + (1 - beta1) * gradient
+            self.v = beta2 * self.v + (1 - beta2) * gradient ** 2
+            m_hat = self.m / (1 - beta1 ** self.t)
+            v_hat = self.v / (1 - beta2 ** self.t)
             self.beta -= self.learning_rate / (self.np_module.sqrt(v_hat) + epsilon) * m_hat
 
 # Example usage:
