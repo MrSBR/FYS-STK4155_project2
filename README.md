@@ -1,6 +1,6 @@
 # FYS-STK4155_project2
 
-    ├── data                            # Contains terrain data
+    ├── data                            # Contains breast cancer data
     │   └── Wisconsin.csv               # Wisconsin breast cancer data
     ├── docs/chatgpt                    # Includes screenshots of conversations with chatgpt
     ├── overleaf                        # includes images, bibliography and latex files from overleaf                   
